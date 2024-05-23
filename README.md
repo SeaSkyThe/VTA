@@ -16,4 +16,4 @@ I'm loading the `/dev/video0` video device directly, maybe you need to change th
 
 ## Example
 
-![Example](./vta_example.gif)
+![Example](./vta_example.mkv)
