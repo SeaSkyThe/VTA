@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VTA ASCII Art Stream</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 5vh;
+        }
+
+        #cameras {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: row;
+            gap: 10vh;
+        }
+
+        #ascii-art {
+            font-family: Courier, serif;
+            font-size: 6px;
+            line-height: 4.5px;
+            white-space: pre;
+            overflow-x: clip;
+        }
+
+        #normal {
+            font-family: Courier, serif;
+            font-size: 8px;
+            line-height: 4px;
+            overflow: auto;
+            /* Enable scrolling if content overflows */
+            max-height: 60%;
+            min-height: 60%;
+            /* Limit maximum height to fit within viewport */
+            max-width: 56%;
+        }
+    </style>
+    <!-- Include htmx library -->
+</head>
+
+<body>
+    <title>VTA</title>
+    <h1>VTA - Video to ASCII</h1>
+    <!-- Use htmx to update the ASCII art -->
+    <div id="cameras">
+        <div id="ascii-art">
+        </div>
+        <div id="normal">
+            <canvas id="videoCanvas" width="640" height="480"></canvas>
+        </div>
+    </div>
+    <button id="toggleButton">Toggle Original Camera</button>
+
+    <script>
+        let asciiSocket;
+        let normalSocket;
+        // Function to establish WebSocket connection and update page content
+        function connectWebSocketASCII() {
+            if (asciiSocket && asciiSocket.readyState !== WebSocket.CLOSED) {
+                return; // Prevent duplicate connections
+            }
+            // Websocket for ascii image
+            // Create WebSocket object
+            asciiSocket = new WebSocket("ws://localhost:9095/ascii");
+
+            // Handle WebSocket events
+            asciiSocket.onopen = function (event) {
+                console.log("WebSocket connection established.");
+            };
+
+            asciiSocket.onmessage = function (event) {
+                // Update ASCII art content with received message
+                var asciiArtDiv = document.getElementById('ascii-art');
+                console.log(event.data)
+                asciiArtDiv.textContent = event.data;
+            };
+
+            asciiSocket.onclose = function (event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            asciiSocket.onerror = function (event) {
+                console.error("WebSocket error:", event);
+            };
+
+        }
+        function connectWebSocketNormal() {
+            // Websocket for original image
+            if (normalSocket && normalSocket.readyState !== WebSocket.CLOSED) {
+                return; // Prevent duplicate connections
+            }
+
+            // Create WebSocket object
+            normalSocket = new WebSocket("ws://localhost:9095/stream");
+
+            // Get reference to canvas element
+            const canvas = document.getElementById('videoCanvas');
+            const ctx = canvas.getContext('2d');
+            // Handle WebSocket events
+            normalSocket.onopen = function (event) {
+                console.log("WebSocket connection established.");
+            };
+
+            normalSocket.onmessage = function (event) {
+                // Decode binary message received from WebSocket
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    // Create an Image object from the received binary data
+                    const img = new Image();
+                    img.onload = function () {
+                        // Draw the image onto the canvas
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(event.data);
+            };
+
+            normalSocket.onclose = function (event) {
+                console.log("WebSocket connection closed.");
+            };
+
+            normalSocket.onerror = function (event) {
+                console.error("WebSocket error:", event);
+            };
+
+        }
+
+        // Call the connectWebSocket function when the page loads
+        window.onload = function () {
+            connectWebSocketASCII();
+            connectWebSocketNormal();
+            const toggleButton = document.getElementById('toggleButton');
+            toggleButton.addEventListener('click', function () {
+                const normalDiv = document.getElementById('normal');
+                if (normalDiv.style.display === 'none') {
+                    normalDiv.style.display = 'block';
+                    connectWebSocketNormal();
+                } else {
+                    normalDiv.style.display = 'none';
+                    normalSocket.close();
+                }
+            });
+        };
+    </script>
+
+</body>
+
+</html>
